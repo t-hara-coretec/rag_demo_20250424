@@ -1,0 +1,43 @@
+digraph "RAG Demo Application Architecture" {
+	graph [fontcolor="#2D3436" fontname="Sans-Serif" fontsize=15 label="RAG Demo Application Architecture" nodesep=0.60 pad=2.0 rankdir=LR ranksep=0.75 splines=ortho]
+	node [fixedsize=true fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 height=1.4 imagescale=true labelloc=b shape=box style=rounded width=1.4]
+	edge [color="#7B8894"]
+	subgraph cluster_Frontend {
+		graph [bgcolor="#E5F5FD" fontname="Sans-Serif" fontsize=12 label=Frontend labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+		"960fe36f2428406d8c95d8816ffdd4a6" [label="chat_app.html" height=1.9 image="/opt/conda/lib/python3.11/site-packages/resources/programming/language/javascript.png" shape=none]
+		"8503ae72887b4926a1314cfc771e098c" [label="chat_app.ts" height=1.9 image="/opt/conda/lib/python3.11/site-packages/resources/programming/language/typescript.png" shape=none]
+	}
+	subgraph cluster_Backend {
+		graph [bgcolor="#E5F5FD" fontname="Sans-Serif" fontsize=12 label=Backend labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+		"2def6d516c1548ca99020b1e7d4decf0" [label="chat_app.py" height=1.9 image="/opt/conda/lib/python3.11/site-packages/resources/programming/framework/fastapi.png" shape=none]
+		cf32c0536f5f416c8b5c50a28affe14f [label="SQLite
+Message Storage" height=2.3 image="/opt/conda/lib/python3.11/site-packages/resources/generic/database/sql.png" shape=none]
+		subgraph "cluster_RAG Components" {
+			graph [bgcolor="#EBF3E7" fontname="Sans-Serif" fontsize=12 label="RAG Components" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+			b78316d69daa463eab9ab26d51b5031b [label="rag_service.py" height=1.9 image="/opt/conda/lib/python3.11/site-packages/resources/programming/language/python.png" shape=none]
+			"996e39d1011c418a8bca4ba371a9ef12" [label="vector_store.py" height=1.9 image="/opt/conda/lib/python3.11/site-packages/resources/programming/language/python.png" shape=none]
+			"7c6d670aa63e4f7197674000fbdb2bcb" [label="pdf_processor.py" height=1.9 image="/opt/conda/lib/python3.11/site-packages/resources/programming/language/python.png" shape=none]
+			"4583d07e9a844fbea30650a3c0db5a00" [label="web_processor.py" height=1.9 image="/opt/conda/lib/python3.11/site-packages/resources/programming/language/python.png" shape=none]
+			d7dbb2b7c9b14dbca6629bd511ff68ba [label="ChromaDB
+Vector Database" height=2.3 image="/opt/conda/lib/python3.11/site-packages/resources/generic/storage/storage.png" shape=none]
+		}
+	}
+	subgraph "cluster_Data Sources" {
+		graph [bgcolor="#E5F5FD" fontname="Sans-Serif" fontsize=12 label="Data Sources" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+		b8446bef55df4035a61de2b32f8364aa [label="PDF Documents" height=1.9 image="/opt/conda/lib/python3.11/site-packages/resources/generic/storage/storage.png" shape=none]
+		a6347705aed04e24b6146f36787ffaae [label="Web Content" height=1.9 image="/opt/conda/lib/python3.11/site-packages/resources/generic/network/firewall.png" shape=none]
+	}
+	"5c46f637d7634f74b16ebad905a7fe68" [label="LLM
+(OpenAI or Ollama)" height=2.3 image="/opt/conda/lib/python3.11/site-packages/resources/generic/compute/rack.png" shape=none]
+	"960fe36f2428406d8c95d8816ffdd4a6" -> "2def6d516c1548ca99020b1e7d4decf0" [label=HTTP dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"8503ae72887b4926a1314cfc771e098c" -> "960fe36f2428406d8c95d8816ffdd4a6" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"2def6d516c1548ca99020b1e7d4decf0" -> cf32c0536f5f416c8b5c50a28affe14f [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"2def6d516c1548ca99020b1e7d4decf0" -> b78316d69daa463eab9ab26d51b5031b [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"2def6d516c1548ca99020b1e7d4decf0" -> "5c46f637d7634f74b16ebad905a7fe68" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	b78316d69daa463eab9ab26d51b5031b -> "996e39d1011c418a8bca4ba371a9ef12" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	b78316d69daa463eab9ab26d51b5031b -> "4583d07e9a844fbea30650a3c0db5a00" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"996e39d1011c418a8bca4ba371a9ef12" -> d7dbb2b7c9b14dbca6629bd511ff68ba [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"996e39d1011c418a8bca4ba371a9ef12" -> "7c6d670aa63e4f7197674000fbdb2bcb" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"7c6d670aa63e4f7197674000fbdb2bcb" -> b8446bef55df4035a61de2b32f8364aa [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"4583d07e9a844fbea30650a3c0db5a00" -> a6347705aed04e24b6146f36787ffaae [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+}
