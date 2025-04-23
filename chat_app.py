@@ -261,6 +261,30 @@ async def add_url(url: Annotated[str, fastapi.Form()]) -> Response:
         )
 
 
+@app.post("/clear_url_cache/")
+async def clear_url_cache() -> Response:
+    """Clear the web content cache"""
+    try:
+        success = rag_service.web_processor.clear_cache()
+        return Response(
+            json.dumps({
+                "status": "success",
+                "message": "Successfully cleared web content cache"
+            }),
+            media_type="application/json"
+        )
+    except Exception as e:
+        print(f"Error clearing URL cache: {e}")
+        return Response(
+            json.dumps({
+                "status": "error",
+                "message": f"Error clearing cache: {str(e)}"
+            }),
+            media_type="application/json",
+            status_code=500
+        )
+
+
 @app.get("/get_urls/")
 async def get_urls() -> Response:
     """Get the list of URLs added to the knowledge base"""
