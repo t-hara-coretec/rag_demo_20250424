@@ -167,10 +167,9 @@ async def post_chat(
         import json as _jsonlib_mod_for_typing
 
         user_msg = ModelRequest(parts=[UserPromptPart(content=original_prompt, timestamp=datetime.now(tz=timezone.utc))])
-        # Store only the user's true prompt in DB immediately
-        # Option A: Prepend/appends to current history (simulate message add)
+        # Store only the user's true prompt in DB immediately -- flush to DB right now!
+        await database.add_messages(ModelMessagesTypeAdapter.dump_json([user_msg]))
         messages = await database.get_messages()
-        messages.append(user_msg)
         # Prepare for streaming to client
         yield (
             json.dumps(
@@ -188,7 +187,13 @@ async def post_chat(
                 m = ModelResponse(parts=[TextPart(text)], timestamp=result.timestamp())
                 yield json.dumps(to_chat_message(m)).encode("utf-8") + b"\n"
 
-        await database.add_messages(result.new_messages_json())
+        # Only store model's responses from this call (never a user question generated from the agent)
+        just_model_responses = [
+            msg for msg in ModelMessagesTypeAdapter.validate_json(result.new_messages_json())
+            if isinstance(msg, ModelResponse)
+        ]
+        if just_model_responses:
+            await database.add_messages(ModelMessagesTypeAdapter.dump_json(just_model_responses))
     return StreamingResponse(stream_messages(), media_type="text/plain")
 
 
