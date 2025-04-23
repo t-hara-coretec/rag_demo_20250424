@@ -44,7 +44,7 @@ logfire.configure(token="pylf_v1_us_yRsWtVfb9mWG189CpHS62bvhSp2lVwm8vZpsHCP4Cdv2
 llama_model = OpenAIModel(
     model_name="7shi/ezo-gemma-2-jpn:2b-instruct-q8_0",
     provider=OpenAIProvider(
-        base_url="http://localhost:11434/v1",
+        base_url="http://localhost:81/v1",
         api_key="ollama"
     )
 )
