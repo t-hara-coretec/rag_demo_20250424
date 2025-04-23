@@ -23,7 +23,7 @@ class RagService:
         )
         self.web_processor = WebContentProcessor(cache_dir=web_cache_dir)
     
-    def retrieve_context(self, query: str, max_documents: int = 5, retrieve_score_thresh: float = 0.5) -> str:
+    def retrieve_context(self, query: str, max_documents: int = 10, retrieve_score_thresh: float = 0.5) -> str:
         """
         Retrieve relevant context for the given query.
         

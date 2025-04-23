@@ -90,21 +90,21 @@ class VectorStore:
         # Convert results to a list of document dictionaries
         documents = []
         if results and results["documents"]:
-            for i, doc in enumerate(results["documents"][0]):
-                # Calculate a score from distance (1.0 is perfect match, 0.0 is poor match)
-                # For cosine similarity, the distance is 1 - cosine_similarity
-                # So the score is just 1 - distance, which equals cosine_similarity
-                distance = results["distances"][0][i] if "distances" in results and results["distances"] else 1.0
-                
-                # Convert distance to score (1.0 is perfect match, 0.0 is poor match)
-                # For cosine, we can use 1-distance directly since distance = 1-cosine_similarity
-                score = max(0.0, min(1.0, distance))
-                
-                documents.append({
-                    "content": doc,
-                    "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
-                    "score": score
-                })
+            for i, (docs, metas, dists) in enumerate(zip(results["documents"], results["metadatas"], results["distances"])):
+                for j, (doc, meta, dist) in enumerate(zip(docs, metas, dists)):
+                    print(f"\n\n\n{doc}\n\n\n")
+                    print(f"\n\n\n{meta}\n\n\n")
+                    print(f"\n\n\n{dist}\n\n\n")
+                    
+                    # Convert distance to score (1.0 is perfect match, 0.0 is poor match)
+                    # For cosine, we can use 1-distance directly since distance = 1-cosine_similarity
+                    score = max(0.0, min(1.0, dist))
+                    
+                    documents.append({
+                        "content": doc,
+                        "metadata": meta,#results["metadatas"][0][i] if results["metadatas"] else {},
+                        "score": score
+                    })
         
         return documents
 
