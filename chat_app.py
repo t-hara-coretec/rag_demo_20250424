@@ -52,8 +52,8 @@ openai_model = "openai:gpt-4.1"
 #openai_model = "openai:o4-mini"
 
 agent = Agent(
-    openai_model, 
-    #llama_model,
+    #openai_model, 
+    llama_model,
     system_prompt=(
       #"Be concise, simple, and sincere in your answers. Use additional info only if relevant.",
       "あなたは優秀なアシスタントです。ユーザーの質問に誠意をもって答えて下さい。聞かれたこと以外は答えないように気をつけてくださいね。",

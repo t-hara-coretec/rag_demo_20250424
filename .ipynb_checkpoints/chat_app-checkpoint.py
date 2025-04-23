@@ -52,8 +52,8 @@ openai_model = "openai:gpt-4.1"
 #openai_model = "openai:o4-mini"
 
 agent = Agent(
-    openai_model, 
-    #llama_model,
+    #openai_model, 
+    llama_model,
     system_prompt=(
       #"Be concise, simple, and sincere in your answers. Use additional info only if relevant.",
       "あなたは優秀なアシスタントです。ユーザーの質問に誠意をもって答えて下さい。聞かれたこと以外は答えないように気をつけてくださいね。",
@@ -99,8 +99,15 @@ async def get_db(request: Request) -> Database:
 @app.get("/chat/")
 async def get_chat(database: Database = Depends(get_db)) -> Response:
     msgs = await database.get_messages()
+    safe_msgs = []
+    for m in msgs:
+        try:
+            safe_msgs.append(json.dumps(to_chat_message(m)).encode("utf-8"))
+        except Exception:
+            # Skip any message that cannot be parsed/displayed as chat
+            continue
     return Response(
-        b"\n".join(json.dumps(to_chat_message(m)).encode("utf-8") for m in msgs),
+        b"\n".join(safe_msgs),
         media_type="text/plain",
     )
 
@@ -129,6 +136,10 @@ def to_chat_message(m: ModelMessage) -> ChatMessage:
                 "timestamp": m.timestamp.isoformat(),
                 "content": first_part.content,
             }
+    print("=== DEBUG: Unexpected message in to_chat_message ===")
+    print("Type:", type(m))
+    print("Value:", repr(m))
+    print("Parts:", getattr(m, "parts", None))
     raise UnexpectedModelBehavior(f"Unexpected message type for chat app: {m}")
 
 
@@ -151,25 +162,38 @@ async def post_chat(
         if use_rag_bool:
             augmented_prompt = rag_service.answer_with_rag(original_prompt)
         
+        # 1. Add the original user request to the chat DB first, if your framework allows it:
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
+        import json as _jsonlib_mod_for_typing
+
+        user_msg = ModelRequest(parts=[UserPromptPart(content=original_prompt, timestamp=datetime.now(tz=timezone.utc))])
+        # Store only the user's true prompt in DB immediately -- flush to DB right now!
+        await database.add_messages(ModelMessagesTypeAdapter.dump_json([user_msg]))
+        messages = await database.get_messages()
+        # Prepare for streaming to client
         yield (
             json.dumps(
                 {
                     "role": "user",
-                    "timestamp": datetime.now(tz=timezone.utc).isoformat(),
-                    "content": original_prompt,  # Show original prompt to user
+                    "timestamp": user_msg.parts[0].timestamp.isoformat(),
+                    "content": original_prompt,
                 }
             ).encode("utf-8")
             + b"\n"
         )
-        messages = await database.get_messages()
-        
-        # Use the augmented prompt with the agent
+        # 2. Use the augmented prompt with the agent, but only for inference—history stays clean
         async with agent.run_stream(augmented_prompt, message_history=messages) as result:
             async for text in result.stream(debounce_by=0.01):
                 m = ModelResponse(parts=[TextPart(text)], timestamp=result.timestamp())
                 yield json.dumps(to_chat_message(m)).encode("utf-8") + b"\n"
 
-        await database.add_messages(result.new_messages_json())
+        # Only store model's responses from this call (never a user question generated from the agent)
+        just_model_responses = [
+            msg for msg in ModelMessagesTypeAdapter.validate_json(result.new_messages_json())
+            if isinstance(msg, ModelResponse)
+        ]
+        if just_model_responses:
+            await database.add_messages(ModelMessagesTypeAdapter.dump_json(just_model_responses))
     return StreamingResponse(stream_messages(), media_type="text/plain")
 
 
@@ -255,6 +279,30 @@ async def add_url(url: Annotated[str, fastapi.Form()]) -> Response:
             json.dumps({
                 "status": "error",
                 "message": f"Error processing URL: {str(e)}"
+            }),
+            media_type="application/json",
+            status_code=500
+        )
+
+
+@app.post("/clear_url_cache/")
+async def clear_url_cache() -> Response:
+    """Clear the web content cache"""
+    try:
+        success = rag_service.web_processor.clear_cache()
+        return Response(
+            json.dumps({
+                "status": "success",
+                "message": "Successfully cleared web content cache"
+            }),
+            media_type="application/json"
+        )
+    except Exception as e:
+        print(f"Error clearing URL cache: {e}")
+        return Response(
+            json.dumps({
+                "status": "error",
+                "message": f"Error clearing cache: {str(e)}"
             }),
             media_type="application/json",
             status_code=500
