@@ -99,8 +99,15 @@ async def get_db(request: Request) -> Database:
 @app.get("/chat/")
 async def get_chat(database: Database = Depends(get_db)) -> Response:
     msgs = await database.get_messages()
+    safe_msgs = []
+    for m in msgs:
+        try:
+            safe_msgs.append(json.dumps(to_chat_message(m)).encode("utf-8"))
+        except Exception:
+            # Skip any message that cannot be parsed/displayed as chat
+            continue
     return Response(
-        b"\n".join(json.dumps(to_chat_message(m)).encode("utf-8") for m in msgs),
+        b"\n".join(safe_msgs),
         media_type="text/plain",
     )
 
@@ -129,6 +136,10 @@ def to_chat_message(m: ModelMessage) -> ChatMessage:
                 "timestamp": m.timestamp.isoformat(),
                 "content": first_part.content,
             }
+    print("=== DEBUG: Unexpected message in to_chat_message ===")
+    print("Type:", type(m))
+    print("Value:", repr(m))
+    print("Parts:", getattr(m, "parts", None))
     raise UnexpectedModelBehavior(f"Unexpected message type for chat app: {m}")
 
 
@@ -151,19 +162,27 @@ async def post_chat(
         if use_rag_bool:
             augmented_prompt = rag_service.answer_with_rag(original_prompt)
         
+        # 1. Add the original user request to the chat DB first, if your framework allows it:
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
+        import json as _jsonlib_mod_for_typing
+
+        user_msg = ModelRequest(parts=[UserPromptPart(content=original_prompt, timestamp=datetime.now(tz=timezone.utc))])
+        # Store only the user's true prompt in DB immediately
+        # Option A: Prepend/appends to current history (simulate message add)
+        messages = await database.get_messages()
+        messages.append(user_msg)
+        # Prepare for streaming to client
         yield (
             json.dumps(
                 {
                     "role": "user",
-                    "timestamp": datetime.now(tz=timezone.utc).isoformat(),
-                    "content": original_prompt,  # Show original prompt to user
+                    "timestamp": user_msg.parts[0].timestamp.isoformat(),
+                    "content": original_prompt,
                 }
             ).encode("utf-8")
             + b"\n"
         )
-        messages = await database.get_messages()
-        
-        # Use the augmented prompt with the agent
+        # 2. Use the augmented prompt with the agent, but only for inference—history stays clean
         async with agent.run_stream(augmented_prompt, message_history=messages) as result:
             async for text in result.stream(debounce_by=0.01):
                 m = ModelResponse(parts=[TextPart(text)], timestamp=result.timestamp())
